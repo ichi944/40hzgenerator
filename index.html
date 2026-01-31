@@ -100,8 +100,8 @@
       <div class="freq">40 Hz</div>
       <h1>Wave Generator</h1>
       <div class="wave-select">
-        <button class="wave-btn active" data-type="sine">正弦波</button>
-        <button class="wave-btn" data-type="square">矩形波</button>
+        <button class="wave-btn" data-type="sine">正弦波</button>
+        <button class="wave-btn active" data-type="square">矩形波</button>
         <button class="wave-btn" data-type="sawtooth">ノコギリ波</button>
         <button class="wave-btn" data-type="triangle">三角波</button>
         <button class="wave-btn" data-type="pulse">パルス</button>
@@ -115,18 +115,26 @@
     <script>
       let ctx, osc, gain;
       let playing = false;
-      let waveType = "sine";
+      let waveType = localStorage.getItem("waveType") || "square";
       let pulseTimer = null;
       let nextPulseTime = 0;
       const btn = document.getElementById("toggle");
       const vol = document.getElementById("vol");
       const waveBtns = document.querySelectorAll(".wave-btn");
 
+      // Restore saved settings
+      const savedVolume = localStorage.getItem("volume");
+      if (savedVolume !== null) vol.value = savedVolume;
+      waveBtns.forEach((b) => {
+        b.classList.toggle("active", b.dataset.type === waveType);
+      });
+
       waveBtns.forEach((b) => {
         b.addEventListener("click", () => {
           waveBtns.forEach((x) => x.classList.remove("active"));
           b.classList.add("active");
           waveType = b.dataset.type;
+          localStorage.setItem("waveType", waveType);
           if (playing) {
             stopAudio();
             startAudio();
@@ -193,6 +201,7 @@
       });
 
       vol.addEventListener("input", () => {
+        localStorage.setItem("volume", vol.value);
         if (gain && waveType !== "pulse")
           gain.gain.value = parseFloat(vol.value);
       });
