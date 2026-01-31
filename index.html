@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>40Hz Generator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+  .container {
+    text-align: center;
+    padding: 2rem;
+  }
+  h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: #aaa;
+  }
+  .freq {
+    font-size: 4rem;
+    font-weight: bold;
+    margin-bottom: 2rem;
+    color: #0ff;
+  }
+  button {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 3px solid #0ff;
+    background: transparent;
+    color: #0ff;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  button:hover {
+    background: rgba(0, 255, 255, 0.1);
+  }
+  button.playing {
+    background: rgba(0, 255, 255, 0.2);
+    border-color: #f55;
+    color: #f55;
+  }
+  .volume {
+    margin-top: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    justify-content: center;
+  }
+  .volume label { color: #aaa; }
+  input[type="range"] {
+    width: 200px;
+    accent-color: #0ff;
+  }
+  .wave-select {
+    margin-top: 2rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .wave-select button {
+    width: auto;
+    height: auto;
+    border-radius: 6px;
+    padding: 0.4rem 1rem;
+    font-size: 0.9rem;
+    border: 2px solid #555;
+    color: #aaa;
+  }
+  .wave-select button:hover {
+    border-color: #0ff;
+    color: #0ff;
+  }
+  .wave-select button.active {
+    border-color: #0ff;
+    color: #0ff;
+    background: rgba(0, 255, 255, 0.15);
+  }
+  .pulse-info {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: #888;
+    display: none;
+  }
+  .pulse-info.visible {
+    display: block;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>40Hz Wave Generator</h1>
+  <div class="freq">40 Hz</div>
+  <div class="wave-select">
+    <button class="wave-btn active" data-type="sine">正弦波</button>
+    <button class="wave-btn" data-type="square">矩形波</button>
+    <button class="wave-btn" data-type="sawtooth">ノコギリ波</button>
+    <button class="wave-btn" data-type="triangle">三角波</button>
+    <button class="wave-btn" data-type="pulse">パルス</button>
+  </div>
+  <div class="pulse-info" id="pulseInfo">1kHz / 1ms幅 / 25ms間隔</div>
+  <button id="toggle">START</button>
+  <div class="volume">
+    <label>Volume</label>
+    <input type="range" id="vol" min="0" max="1" step="0.01" value="0.3">
+  </div>
+</div>
+<script>
+  let ctx, osc, gain;
+  let playing = false;
+  let waveType = 'sine';
+  let pulseTimer = null;
+  let nextPulseTime = 0;
+  const btn = document.getElementById('toggle');
+  const vol = document.getElementById('vol');
+  const waveBtns = document.querySelectorAll('.wave-btn');
+  const pulseInfo = document.getElementById('pulseInfo');
+
+  waveBtns.forEach(b => {
+    b.addEventListener('click', () => {
+      waveBtns.forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      waveType = b.dataset.type;
+      pulseInfo.classList.toggle('visible', waveType === 'pulse');
+      if (playing) { stopAudio(); startAudio(); }
+    });
+  });
+
+  function schedulePulses() {
+    const now = ctx.currentTime;
+    const ahead = 0.1;
+    const volume = parseFloat(vol.value);
+    while (nextPulseTime < now + ahead) {
+      gain.gain.setValueAtTime(volume, nextPulseTime);
+      gain.gain.setValueAtTime(0, nextPulseTime + 0.001);
+      nextPulseTime += 0.025;
+    }
+    pulseTimer = setTimeout(schedulePulses, 50);
+  }
+
+  function startAudio() {
+    ctx = new AudioContext();
+    osc = ctx.createOscillator();
+    gain = ctx.createGain();
+    if (waveType === 'pulse') {
+      osc.type = 'sine';
+      osc.frequency.value = 1000;
+      gain.gain.value = 0;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      nextPulseTime = ctx.currentTime;
+      schedulePulses();
+    } else {
+      osc.type = waveType;
+      osc.frequency.value = 40;
+      gain.gain.value = parseFloat(vol.value);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+    }
+    btn.textContent = 'STOP';
+    btn.classList.add('playing');
+    playing = true;
+  }
+
+  function stopAudio() {
+    if (pulseTimer) { clearTimeout(pulseTimer); pulseTimer = null; }
+    osc.stop();
+    ctx.close();
+    btn.textContent = 'START';
+    btn.classList.remove('playing');
+    playing = false;
+  }
+
+  btn.addEventListener('click', () => {
+    if (!playing) { startAudio(); } else { stopAudio(); }
+  });
+
+  vol.addEventListener('input', () => {
+    if (gain && waveType !== 'pulse') gain.gain.value = parseFloat(vol.value);
+  });
+</script>
+</body>
+</html>
