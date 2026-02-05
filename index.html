@@ -157,6 +157,26 @@
         pulseTimer = setTimeout(schedulePulses, 50);
       }
 
+      function setupMediaSession() {
+        if ("mediaSession" in navigator) {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: "40Hz Tone",
+            artist: "Wave Generator",
+            album: "40ヘルツトーン発振器",
+          });
+          navigator.mediaSession.setActionHandler("play", () => {
+            if (!playing) startAudio();
+          });
+          navigator.mediaSession.setActionHandler("pause", () => {
+            if (playing) stopAudio();
+          });
+          navigator.mediaSession.setActionHandler("stop", () => {
+            if (playing) stopAudio();
+          });
+          navigator.mediaSession.playbackState = "playing";
+        }
+      }
+
       function startAudio() {
         ctx = new AudioContext();
         osc = ctx.createOscillator();
@@ -181,6 +201,7 @@
         btn.textContent = "STOP";
         btn.classList.add("playing");
         playing = true;
+        setupMediaSession();
       }
 
       function stopAudio() {
@@ -193,6 +214,9 @@
         btn.textContent = "START";
         btn.classList.remove("playing");
         playing = false;
+        if ("mediaSession" in navigator) {
+          navigator.mediaSession.playbackState = "paused";
+        }
       }
 
       btn.addEventListener("click", () => {
